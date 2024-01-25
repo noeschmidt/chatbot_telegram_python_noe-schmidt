@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 from transports import start as start_transports, recherche_arret_commande, TRANSPORTS, handle_transport_input, \
-    handle_stop_command, recherche_texte
+    handle_stop_command, recherche_texte, afficher_arret
 
 # Token for Telegram Bot
 token = sys.argv[1]
@@ -215,7 +215,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
-
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
@@ -263,8 +262,8 @@ def main() -> None:
                 MessageHandler(filters.Regex('^Retour'), start),
             ],
             TRANSPORTS: [
-                MessageHandler(filters.TEXT, recherche_texte),
-                CommandHandler("stop", handle_stop_command)
+                MessageHandler(filters.Regex('^/s[0-9]+'), afficher_arret),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, recherche_texte),
             ],
         },
         fallbacks=[
@@ -275,7 +274,6 @@ def main() -> None:
     )
 
     application.add_handler(conv_handler)
-
     # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

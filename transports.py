@@ -25,7 +25,9 @@ def appeler_opendata(path):
     url = f"http://transport.opendata.ch/v1{path}"
     reponse = requests.get(url)
     print(reponse.json()) # Debug
+    logger.info(f"API Response from {url}: {reponse.text}")
     return reponse.json()
+
 
 def rechercher_arrets(parametres):
     data = appeler_opendata(parametres)
@@ -34,14 +36,12 @@ def rechercher_arrets(parametres):
 
     for arret in arrets:
         if arret['id']:
-            message_texte = f'{message_texte}\n /s{arret["id"]}'
-            message_texte = f'{message_texte} {arret["name"]}'
-            message_texte = f'{message_texte} ({arret["icon"]})'
-
+            # Utilisation d'une commande inline pour chaque arrêt
+            message_texte += f"\n/s{arret['id']} - {arret['name']} ({arret['icon']})"
     return message_texte
 
-def rechercher_prochains_departs(id):
 
+def rechercher_prochains_departs(id):
     data = appeler_opendata(f'/stationboard?id={id}')
     stationboard = data['stationboard']
 
@@ -93,22 +93,13 @@ async def handle_transport_input(update: Update, context: ContextTypes.DEFAULT_T
 
 async def handle_stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Assurez-vous que l'utilisateur a bien fourni le nom de l'arrêt après /stop
-    if len(context.args) > 0:
-        nom_arret = ' '.join(context.args)
-        # Appeler la fonction de recherche d'arrêt
-        prochains_departs = rechercher_arrets(f'/stationboard?station={nom_arret}')
-        # Formater et envoyer la réponse
-        reponse = formater_prochains_departs(prochains_departs)
-        await update.message.reply_text(reponse)
-    else:
-        await update.message.reply_text("Veuillez fournir le nom de l'arrêt après /stop. Par exemple: /stop Gare Cornavin")
+    nom_arret = update.message.text
+    # Appeler la fonction de recherche d'arrêt
+    prochains_departs = rechercher_arrets(f'/locations?query={nom_arret}')
+    # Formater et envoyer la réponse
+    await update.message.reply_text(prochains_departs)
 
 
-"""
-    Formate les données des prochains départs en un message texte.
-    :param data: Les données récupérées de l'API de transport.
-    :return: Une chaîne de caractères formatée avec les informations des prochains départs.
-    """
 def formater_prochains_departs(data):
     if 'stationboard' not in data:
         return "Aucune information de départ trouvée pour cet arrêt."
@@ -131,6 +122,7 @@ def formater_prochains_departs(data):
 
 async def afficher_arret(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     identifiant = update.message.text[2:]
+    print(identifiant)
     prochains_departs = rechercher_prochains_departs(identifiant)
     await update.message.reply_text(prochains_departs)
 
