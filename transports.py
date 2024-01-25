@@ -83,18 +83,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     return TRANSPORTS
 
 
-async def recherche_texte(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    texte_a_rechercher = update.message.text
-    arrets = rechercher_arrets(f'/locations?query={texte_a_rechercher}')
-    await update.message.reply_text(arrets)
-
-
-async def recherche_gps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_location = update.message.location
-    arrets = rechercher_arrets(f'/locations?x={user_location.latitude}&y={user_location.longitude}')
-    await update.message.reply_text(arrets)
-
-
 async def handle_transport_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Traiter le texte ou la localisation envoyée par l'utilisateur
     user_input = update.message.text  # ou update.message.location pour les coordonnées
@@ -103,13 +91,25 @@ async def handle_transport_input(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text(reponse)
 
 
-def formater_prochains_departs(data):
-    """
-    Formate les données des prochains départs en un message texte.
+async def handle_stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Assurez-vous que l'utilisateur a bien fourni le nom de l'arrêt après /stop
+    if len(context.args) > 0:
+        nom_arret = ' '.join(context.args)
+        # Appeler la fonction de recherche d'arrêt
+        prochains_departs = rechercher_arrets(f'/stationboard?station={nom_arret}')
+        # Formater et envoyer la réponse
+        reponse = formater_prochains_departs(prochains_departs)
+        await update.message.reply_text(reponse)
+    else:
+        await update.message.reply_text("Veuillez fournir le nom de l'arrêt après /stop. Par exemple: /stop Gare Cornavin")
 
+
+"""
+    Formate les données des prochains départs en un message texte.
     :param data: Les données récupérées de l'API de transport.
     :return: Une chaîne de caractères formatée avec les informations des prochains départs.
     """
+def formater_prochains_departs(data):
     if 'stationboard' not in data:
         return "Aucune information de départ trouvée pour cet arrêt."
 
@@ -133,6 +133,12 @@ async def afficher_arret(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     identifiant = update.message.text[2:]
     prochains_departs = rechercher_prochains_departs(identifiant)
     await update.message.reply_text(prochains_departs)
+
+
+async def recherche_texte(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    texte_a_rechercher = update.message.text
+    arrets = rechercher_arrets(f'/locations?query={texte_a_rechercher}')
+    await update.message.reply_text(arrets)
 
 """
 app = ApplicationBuilder().token(token).build()

@@ -10,7 +10,8 @@ from telegram.ext import (
     filters,
 )
 
-from transports import start as start_transports, recherche_arret_commande, TRANSPORTS, handle_transport_input
+from transports import start as start_transports, recherche_arret_commande, TRANSPORTS, handle_transport_input, \
+    handle_stop_command, recherche_texte
 
 # Token for Telegram Bot
 token = sys.argv[1]
@@ -262,8 +263,8 @@ def main() -> None:
                 MessageHandler(filters.Regex('^Retour'), start),
             ],
             TRANSPORTS: [
-                MessageHandler(filters.Regex('^/stop'), recherche_arret_commande),
-                MessageHandler(filters.TEXT | filters.LOCATION, handle_transport_input),
+                MessageHandler(filters.TEXT, recherche_texte),
+                CommandHandler("stop", handle_stop_command)
             ],
         },
         fallbacks=[
