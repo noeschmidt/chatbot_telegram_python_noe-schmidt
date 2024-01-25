@@ -10,8 +10,7 @@ from telegram.ext import (
     filters,
 )
 
-from transports import start as start_transports
-from transports import recherche_texte
+from transports import start as start_transports, recherche_arret_commande, TRANSPORTS, handle_transport_input
 
 # Token for Telegram Bot
 token = sys.argv[1]
@@ -28,22 +27,6 @@ logger = logging.getLogger(__name__)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Starts the conversation and asks the user about if they're looking for going out or a restaurant."""
-    reply_keyboard = [["Sorties", "Restaurant"]]
-
-    await update.message.reply_text(
-        "Salut, je suis le bot de Noé et je suis là pour t'aider à Genève !\n\n"
-        "Envoie /cancel pour arrêter de discuter.\n\n"
-        "Veux-tu que je t'assiste pour des idées de sorties ou de restaurants ?",
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard, one_time_keyboard=True, resize_keyboard=True
-        ),
-    )
-
-    return CHOICE
-
-
-async def transport(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Starts the conversation and asks the user about if they're looking for going out or a restaurant."""
     reply_keyboard = [["Sorties", "Restaurant"]]
 
@@ -278,10 +261,15 @@ def main() -> None:
             END: [
                 MessageHandler(filters.Regex('^Retour'), start),
             ],
+            TRANSPORTS: [
+                MessageHandler(filters.Regex('^/stop'), recherche_arret_commande),
+                MessageHandler(filters.TEXT | filters.LOCATION, handle_transport_input),
+            ],
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
-            CommandHandler("stop", recherche_texte)
+            CommandHandler("start", start),
+            CommandHandler("transport", start_transports),
         ],
     )
 

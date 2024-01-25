@@ -1,13 +1,17 @@
+import logging
+import math
 import sys
 import time
-import math
+
 import requests
-import logging
 
 token = sys.argv[1]
 
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import ContextTypes
+from datetime import datetime
+
+TRANSPORTS = "TRANSPORTS"
 
 # Setup logging
 logging.basicConfig(
@@ -20,6 +24,7 @@ logger = logging.getLogger(__name__)
 def appeler_opendata(path):
     url = f"http://transport.opendata.ch/v1{path}"
     reponse = requests.get(url)
+    print(reponse.json()) # Debug
     return reponse.json()
 
 def rechercher_arrets(parametres):
@@ -60,9 +65,22 @@ def rechercher_prochains_departs(id):
     return message_texte
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def recherche_arret_commande(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Vérifiez si le nom de l'arrêt est fourni
+    if context.args:
+        nom_arret = ' '.join(context.args)
+        arrets = rechercher_arrets(f'/locations?query={nom_arret}')
+        await update.message.reply_text(arrets)
+    else:
+        # Si aucun nom d'arrêt n'est fourni, vous pouvez envoyer un message d'erreur ou d'instructions
+        await update.message.reply_text("Veuillez fournir le nom de l'arrêt après /stop. Exemple: /stop [nom de "
+                                        "l'arrêt]")
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
     await update.message.reply_text(f'Hello {update.effective_user.first_name}, utilise les commandes /stop '
                                     f'ou donne directement des cordonnées et un lieu.')
+    return TRANSPORTS
 
 
 async def recherche_texte(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -75,6 +93,40 @@ async def recherche_gps(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user_location = update.message.location
     arrets = rechercher_arrets(f'/locations?x={user_location.latitude}&y={user_location.longitude}')
     await update.message.reply_text(arrets)
+
+
+async def handle_transport_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Traiter le texte ou la localisation envoyée par l'utilisateur
+    user_input = update.message.text  # ou update.message.location pour les coordonnées
+    prochains_departs = appeler_opendata(f'/stationboard?station={user_input}')  # Appelez la fonction avec les bons paramètres
+    reponse = formater_prochains_departs(prochains_departs)  # Formatez la réponse
+    await update.message.reply_text(reponse)
+
+
+def formater_prochains_departs(data):
+    """
+    Formate les données des prochains départs en un message texte.
+
+    :param data: Les données récupérées de l'API de transport.
+    :return: Une chaîne de caractères formatée avec les informations des prochains départs.
+    """
+    if 'stationboard' not in data:
+        return "Aucune information de départ trouvée pour cet arrêt."
+
+    message = "Prochains départs:\n\n"
+
+    for depart in data['stationboard']:
+        ligne = depart['number']
+        destination = depart['to']
+        heure_depart = depart['stop']['departure']
+
+        # Convertir le temps de départ en un format lisible (si nécessaire)
+        heure_depart = datetime.fromisoformat(heure_depart).strftime('%H:%M')
+        # ...
+
+        message += f"Ligne {ligne} vers {destination} - Départ à {heure_depart}\n"
+
+    return message
 
 
 async def afficher_arret(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
